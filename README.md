@@ -1,16 +1,47 @@
 # ngx-worker-bridge
 
-A lightweight, reactive communication layer for **Angular** and **React** that reduces the overhead of working with Dedicated and Shared Web Workers.
+A lightweight, zero-boilerplate reactive bridge for **Angular** and **React** that makes Web Workers (Dedicated and Shared) as simple as calling a regular method.
 
-## Concept: Logic vs UI
+[![npm version](https://img.shields.io/npm/v/ngx-worker-bridge.svg)](https://www.npmjs.com/package/ngx-worker-bridge)
+[![license](https://img.shields.io/npm/l/ngx-worker-bridge.svg)](./LICENSE)
 
-This library enforces a clean separation between your UI and your background logic:
-- **Main Thread (UI)**: Your Angular Services or React Components.
-- **Worker Thread (Logic)**: Pure TypeScript classes (Modules) that handle business logic, CPU-heavy tasks, or shared state.
+## Why?
 
-## Quick Start (Common Core)
+Web Workers have a verbose API (`postMessage`, `onmessage`, manual serialization). This library removes all of that. Just decorate a method with `@RunInWorker` — the rest is handled for you.
 
-### 1. In your Worker (`app.worker.ts`)
+## Installation
+
+**Angular** (RxJS is already included in Angular projects):
+```bash
+npm i ngx-worker-bridge
+```
+
+**React** (RxJS must be installed separately since React doesn't include it):
+```bash
+npm i ngx-worker-bridge rxjs
+```
+
+> **React only**: Add these to your `tsconfig.app.json` for decorator support:
+> ```json
+> { "experimentalDecorators": true, "useDefineForClassFields": false }
+> ```
+
+---
+
+## Core Concept
+
+| Thread | Your Code |
+|---|---|
+| **Worker thread** | A plain TypeScript class (`Module`) with your business logic |
+| **Main thread** | A service/component that calls methods as if they're local |
+
+The library handles the `postMessage` bridge between them invisibly.
+
+---
+
+## Angular Quick Start
+
+### 1. Worker file (`app.worker.ts`)
 ```typescript
 import { startWorker } from 'ngx-worker-bridge';
 import { DataModule } from './data.module';
@@ -18,76 +49,121 @@ import { DataModule } from './data.module';
 startWorker([DataModule]);
 ```
 
----
-
-## Angular Support
-
-### 2. In your Main App (`main.ts`)
+### 2. Bootstrap (`main.ts`)
 ```typescript
 import { provideWorkerBridge } from 'ngx-worker-bridge/angular';
 
 bootstrapApplication(AppComponent, {
   providers: [
-    provideWorkerBridge({ 
-      name: 'shared_api', 
-      instance: new SharedWorker(new URL('./app.worker', import.meta.url)) 
+    provideWorkerBridge({
+      instance: new Worker(new URL('./app.worker', import.meta.url), { type: 'module' }),
+      modules: [DataModule]
+    }),
+    // Optional: add a SharedWorker for multi-tab state
+    provideWorkerBridge({
+      name: 'shared',
+      instance: new SharedWorker(new URL('./app.worker', import.meta.url), { name: 'shared', type: 'module' }),
+      modules: [DataModule]
     })
   ]
 });
 ```
 
-### 3. In your Service
+### 3. Service
 ```typescript
+import { Injectable } from '@angular/core';
 import { RunInWorker, workerStore } from 'ngx-worker-bridge';
 
 @Injectable({ providedIn: 'root' })
 export class DataService {
-  stats$ = workerStore("stats", "shared_api");
+  // Reactive state — updates automatically when the worker calls setState()
+  count$ = workerStore<number>('counter', 'shared');
 
-  @RunInWorker({ bridge: "shared_api" })
-  fetchData() { } 
+  // This runs in the worker — UI thread is never blocked
+  @RunInWorker({ bridge: 'shared', namespace: 'data' })
+  processData(payload: any): Promise<any> { return null as any; }
 }
 ```
 
 ---
 
-## React Support
+## React Quick Start
 
-### 2. In your Entry Point (`main.tsx`)
+### 1. Worker file (`app.worker.ts`)
+```typescript
+import { startWorker } from 'ngx-worker-bridge';
+import { DataModule } from './data.module';
+
+startWorker([DataModule]);
+```
+
+### 2. Bootstrap (`App.tsx` or `main.tsx`)
 ```typescript
 import { bootstrapWorker } from 'ngx-worker-bridge';
+import { DataModule } from './data.module';
 
 bootstrapWorker({
-  name: 'shared_api',
-  worker: new SharedWorker(new URL('./app.worker', import.meta.url))
+  worker: new SharedWorker(new URL('./app.worker', import.meta.url), { name: 'shared', type: 'module' }),
+  name: 'shared',
+  modules: [DataModule]
 });
 ```
 
-### 3. In your Component
+### 3. Component
 ```typescript
 import { useWorkerStore } from 'ngx-worker-bridge/react';
 import { RunInWorker } from 'ngx-worker-bridge';
 
 class DataService {
-  @RunInWorker({ bridge: "shared_api" })
-  async fetchData() { }
+  @RunInWorker({ bridge: 'shared', namespace: 'data' })
+  processData(payload: any): Promise<any> { return null as any; }
 }
 
-const api = new DataService();
+const service = new DataService();
 
 function App() {
-  const stats = useWorkerStore("stats", "shared_api");
-  return <div onClick={() => api.fetchData()}>Progress: {stats?.percent}%</div>;
+  const count = useWorkerStore<number>('counter', 'shared');
+  return <button onClick={() => service.processData({})}>Count: {count}</button>;
 }
 ```
 
+---
+
+## Worker Module
+
+Your background logic lives in a plain TypeScript class. Use `setState` to push reactive updates to all connected tabs.
+
+```typescript
+import { setState } from 'ngx-worker-bridge';
+
+export class DataModule {
+  private count = 0;
+
+  // Namespace matches the class name: "DataModule" → "data"
+  increment() {
+    this.count++;
+    setState('counter', this.count); // broadcasts to all tabs
+    return this.count;
+  }
+}
+```
+
+---
+
 ## Best Use Cases
-- **Multi-Tab State Sync**: Use a `SharedWorker` to keep data (like notification counts or charts) in sync across all open browser tabs.
-- **CPU Offloading**: Move heavy data processing (sorting, filtering large JSONs, math) out of the main thread.
-- **Shared Connections**: Maintain a single WebSocket or Polling interval in a SharedWorker that broadcasts updates to all connected tabs.
+
+- **Multi-Tab State Sync** — Use a `SharedWorker` to keep counters, notifications, or live data in sync across all open tabs without any server involvement.
+- **CPU Offloading** — Move heavy computation (large JSON processing, sorting, math) off the UI thread so your app stays interactive.
+- **Shared Connections** — Maintain a single WebSocket or polling interval in a SharedWorker and broadcast to all connected tabs.
+
+---
 
 ## Debugging
-The library automatically proxies `console.log`, `console.warn`, and `console.error` from the background worker to your main browser console, prefixed with `[Worker]`.
+
+All `console.log`, `console.warn`, and `console.error` calls made inside your worker modules are automatically forwarded to the main browser console, prefixed with `[Worker]`. No setup required.
+
+---
 
 ## Demo
-Check out the [Demo Repository (Angular Only)](https://github.com/yashwantyashu/worker-demo-app) to see this in action. A React demo will be added soon.
+
+[Demo Repository (Angular)](https://github.com/yashwantyashu/worker-demo-app)

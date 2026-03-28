@@ -94,7 +94,6 @@ export function initModules(moduleNames: string[]) {
     // Only create an instance if one doesn't already exist
     if (!instances[name]) {
       instances[name] = new ModuleClass()
-      console.log("Initialized module instance:", name)
     }
     const instance = instances[name]
 
@@ -114,8 +113,6 @@ export function initModules(moduleNames: string[]) {
       const handler = instance[methodName].bind(instance)
 
       const command = namespace + "." + methodName
-
-      console.log("Registering command:", command)
 
       router.register(command, handler)
 
@@ -205,11 +202,9 @@ const setupPort = (port: MessagePort | any) => {
 // Shared Worker support
 if ('onconnect' in self) {
   self.onconnect = (event: any) => {
-    console.log("Shared worker connected")
     setupPort(event.ports[0])
   }
 } else {
   // Regular Worker support
-  console.log("Regular worker connected")
   setupPort(self)
 }

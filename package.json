@@ -1,6 +1,6 @@
 {
   "name": "ngx-worker-bridge",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Zero-boilerplate reactive bridge for Angular Dedicated and Shared Workers.",
   "type": "module",
   "main": "./dist/index.js",
@@ -11,19 +11,19 @@
   ],
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.js"
     },
     "./angular": {
+      "types": "./dist/angular/index.d.ts",
       "import": "./dist/angular/index.mjs",
-      "require": "./dist/angular/index.js",
-      "types": "./dist/angular/index.d.ts"
+      "require": "./dist/angular/index.js"
     },
     "./react": {
+      "types": "./dist/react/index.d.ts",
       "import": "./dist/react/index.mjs",
-      "require": "./dist/react/index.js",
-      "types": "./dist/react/index.d.ts"
+      "require": "./dist/react/index.js"
     }
   },
   "scripts": {
@@ -39,8 +39,12 @@
     "rxjs",
     "signals"
   ],
-  "author": "",
+  "author": "yashwantyashu",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yashwantyashu/worker-bridge.git"
+  },
   "peerDependencies": {
     "@angular/core": ">=16.0.0",
     "react": ">=16.8.0",
