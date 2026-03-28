@@ -11,19 +11,19 @@
   ],
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.js"
     },
     "./angular": {
+      "types": "./dist/angular/index.d.ts",
       "import": "./dist/angular/index.mjs",
-      "require": "./dist/angular/index.js",
-      "types": "./dist/angular/index.d.ts"
+      "require": "./dist/angular/index.js"
     },
     "./react": {
+      "types": "./dist/react/index.d.ts",
       "import": "./dist/react/index.mjs",
-      "require": "./dist/react/index.js",
-      "types": "./dist/react/index.d.ts"
+      "require": "./dist/react/index.js"
     }
   },
   "scripts": {
