@@ -1,4 +1,4 @@
-import { Subject } from "rxjs"
+import { Subject, ReplaySubject } from "rxjs"
 
 const DEBUG = false
 
@@ -11,7 +11,7 @@ export class WorkerBridge {
     resolve: (data: any) => void,
     reject: (err: any) => void
   }>()
-  private subjects = new Map<string, Subject<any>>()
+  private subjects = new Map<string, ReplaySubject<any>>()
 
   constructor(worker: Worker | SharedWorker) {
 
@@ -51,12 +51,13 @@ export class WorkerBridge {
 
       if (eventName) {
         if (!this.subjects.has(eventName)) {
-          this.subjects.set(eventName, new Subject())
+          this.subjects.set(eventName, new ReplaySubject(1))
         }
         this.subjects.get(eventName)!.next(eventPayload)
       }
     }
   }
+
   execute(command: string, payload: any): Promise<any> {
 
     const id = this.requestId++
@@ -94,7 +95,7 @@ export class WorkerBridge {
   events(eventName: string) {
 
     if (!this.subjects.has(eventName)) {
-      this.subjects.set(eventName, new Subject())
+      this.subjects.set(eventName, new ReplaySubject(1))
     }
 
     return this.subjects.get(eventName)!.asObservable()
